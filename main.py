@@ -4,6 +4,11 @@ import json
 import asyncio
 import glob
 import random
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import yt_dlp
@@ -388,14 +393,38 @@ async def download_and_send(update, context, track):
         await status_msg.edit_text(STRINGS[lang]['track_error'])
 
 
-def main():
-    if not TELEGRAM_TOKEN: return
+async def main_async():
+    if not TELEGRAM_TOKEN:
+        print("❌ Ошибка: TELEGRAM_BOT_TOKEN не найден в .env или Secrets!")
+        return
+        
     application = Application.builder().token(TELEGRAM_TOKEN).build()
+    
+    # Получаем информацию о боте для вывода названия
+    bot_info = await application.bot.get_me()
+    print(f"🚀 Бот @{bot_info.username} ({bot_info.first_name}) успешно запущен и готов к работе!")
+    logger.info(f"Бот {bot_info.username} запущен")
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_music))
     application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO | filters.VIDEO | filters.Document.ALL, recognize_audio))
     application.add_handler(CallbackQueryHandler(button_handler))
-    application.run_polling()
+    
+    async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        # Keep the event loop running
+        while True:
+            await asyncio.sleep(1)
+
+def main():
+    try:
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
 
 if __name__ == "__main__":
     main()
