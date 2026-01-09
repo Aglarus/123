@@ -18,40 +18,151 @@ logger = logging.getLogger(__name__)
 
 # Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-FOOTER_TEXT = "\n\n⚡️ *Бот разработан Aglarus*"
+FOOTER_TEXT = {
+    'ru': "\n\n⚡️ *Бот разработан Aglarus*",
+    'uz': "\n\n⚡️ *Bot Aglarus tomonidan ishlab chiqilgan*",
+    'en': "\n\n⚡️ *Bot developed by Aglarus*",
+    'az': "\n\n⚡️ *Bot Aglarus tərəfindən hazırlanıb*"
+}
 
-# In-memory storage for search results
+# Persistent storage for user preferences
+PREFS_FILE = "user_prefs.json"
+
+def load_prefs():
+    if os.path.exists(PREFS_FILE):
+        try:
+            with open(PREFS_FILE, 'r') as f:
+                # Convert string keys back to int for user_id
+                data = json.load(f)
+                return {int(k): v for k, v in data.items()}
+        except Exception as e:
+            logger.error(f"Error loading prefs: {e}")
+    return {}
+
+def save_prefs():
+    try:
+        with open(PREFS_FILE, 'w') as f:
+            json.dump(user_prefs, f)
+    except Exception as e:
+        logger.error(f"Error saving prefs: {e}")
+
+user_prefs = load_prefs()
 user_searches = {}
 
-CREATIVE_STATUS = [
-    "🎸 Настраиваю гитару...",
-    "🎼 Ищу вдохновение в нотах...",
-    "🎧 Прослушиваю мировые хиты...",
-    "🎹 Проверяю аккорды...",
-    "🎤 Распеваюсь перед поиском...",
-    "🎻 Протираю смычок...",
-    "🥁 Ловлю ритм..."
-]
-
-CREATIVE_FOUND = [
-    "✨ Эврика! Вот что удалось найти:",
-    "🎵 Музыкальная находка специально для тебя:",
-    "🌟 Твои уши будут в восторге:",
-    "🎶 Посмотри, какие сокровища я нашел:",
-    "🔥 Это звучит круто! Выбирай:"
-]
+STRINGS = {
+    'ru': {
+        'start': "🎸 *Привет! Я твой личный музыкальный гуру.*\n\n1️⃣ *Поиск*: Просто напиши название или автора.\n2️⃣ *Распознавание*: Скинь аудио или голосовое — и я узнаю этот хит!\n\n📩 Попробуй: 'Лепс зараза'",
+        'lang_select': "Выбери язык / Tilni tanlang / Select language / Dil seçin:",
+        'searching': ["🎸 Настраиваю гитару...", "🎼 Ищу вдохновение в нотах...", "🎧 Прослушиваю мировые хиты..."],
+        'found': ["✨ Эврика! Вот что удалось найти:", "🎵 Музыкальная находка специально для тебя:", "🔥 Это звучит круто! Выбирай:"],
+        'not_found': "😢 Увы, тишина... Ничего не найдено.\nПопробуй другой запрос!",
+        'error': "😵 Ой, струна лопнула! (Ошибка поиска)",
+        'back': "◀️ Назад",
+        'next': "▶️ Вперёд",
+        'timeout': "🕰 Время вышло! Начни новый поиск.",
+        'recognizing': "🎧 *Прислушиваюсь к ритму...*",
+        'not_recognized': "🤷‍♂️ Не узнаю этот мотив... Может, споешь погромче?",
+        'recognized': "🔥 *О, это же {subtitle} — {title}!* \nИщу лучшую запись для тебя...",
+        'rec_error': "😵 Не удалось распознать. Кажется, кто-то фальшивит!",
+        'sending': "🚀 *Летит к тебе:* {title}...",
+        'dl_error': "❌ Загрузка сорвалась. Попробуй еще раз.",
+        'track_error': "😿 Прости, не удалось достать этот трек.",
+        'dev': "💎 Разработка: Aglarus"
+    },
+    'uz': {
+        'start': "🎸 *Salom! Men sizning shaxsiy musiqa gurusingizman.*\n\n1️⃣ *Qidiruv*: Shunchaki nomini yoki muallifini yozing.\n2️⃣ *Tanish*: Audio yoki ovozli xabar yuboring — va men ushbu xitni taniyman!\n\n📩 Sinab ko'ring: 'Sherali Jo'rayev'",
+        'lang_select': "Tilni tanlang:",
+        'searching': ["🎸 Gitarani sozlayapman...", "🎼 Notalardan ilhom qidiryapman...", "🎧 Dunyo xitlarini tinglayapman..."],
+        'found': ["✨ Evrika! Mana nimalar topildi:", "🎵 Maxsus siz uchun musiqiy topilma:", "🔥 Bu ajoyib eshitiladi! Tanlang:"],
+        'not_found': "😢 Afsus, jimjitlik... Hech narsa topilmadi.\nBoshqa so'rovni sinab ko'ring!",
+        'error': "😵 Voy, tor uzilib ketdi! (Qidiruv xatosi)",
+        'back': "◀️ Orqaga",
+        'next': "▶️ Oldinga",
+        'timeout': "🕰 Vaqt tugadi! Yangi qidiruvni boshlang.",
+        'recognizing': "🎧 *Ritmni tinglayapman...*",
+        'not_recognized': "🤷‍♂️ Bu ohangni tani olmayapman... Balki balandroq kuylarsiz?",
+        'recognized': "🔥 *O, bu {subtitle} — {title}!* \nSiz uchun eng yaxshi yozuvni qidiryapman...",
+        'rec_error': "😵 Taniy olmadim. Kimdir noto'g'ri kuylayotganga o'xshaydi!",
+        'sending': "🚀 *Sizga uchmoqda:* {title}...",
+        'dl_error': "❌ Yuklab olish amalga oshmadi. Qayta urinib ko'ring.",
+        'track_error': "😿 Kechirasiz, bu trekni olishning iloji bo'lmadi.",
+        'dev': "💎 Ishlab chiquvchi: Aglarus"
+    },
+    'en': {
+        'start': "🎸 *Hello! I'm your personal music guru.*\n\n1️⃣ *Search*: Just type the name or artist.\n2️⃣ *Recognition*: Send audio or voice — and I'll recognize this hit!\n\n📩 Try: 'Queen Bohemian Rhapsody'",
+        'lang_select': "Select language:",
+        'searching': ["🎸 Tuning the guitar...", "🎼 Looking for inspiration in notes...", "🎧 Listening to world hits..."],
+        'found': ["✨ Eureka! Here's what I found:", "🎵 A musical find just for you:", "🔥 This sounds cool! Choose:"],
+        'not_found': "😢 Alas, silence... Nothing found.\nTry another query!",
+        'error': "😵 Oops, a string snapped! (Search error)",
+        'back': "◀️ Back",
+        'next': "▶️ Next",
+        'timeout': "🕰 Time's up! Start a new search.",
+        'recognizing': "🎧 *Listening to the rhythm...*",
+        'not_recognized': "🤷‍♂️ I don't recognize this tune... Maybe sing louder?",
+        'recognized': "🔥 *Oh, it's {subtitle} — {title}!* \nLooking for the best recording for you...",
+        'rec_error': "😵 Could not recognize. Someone seems to be out of tune!",
+        'sending': "🚀 *Flying to you:* {title}...",
+        'dl_error': "❌ Download failed. Try again.",
+        'track_error': "😿 Sorry, could not get this track.",
+        'dev': "💎 Developer: Aglarus"
+    },
+    'az': {
+        'start': "🎸 *Salam! Mən sənin şəxsi musiqi qurun bələdçisiyəm.*\n\n1️⃣ *Axtarış*: Sadəcə adı və ya müəllifi yaz.\n2️⃣ *Tanıma*: Audio və ya səsli mesaj göndər — mən bu hiti tanıyacam!\n\n📩 Sına: 'Rəşid Behbudov'",
+        'lang_select': "Dil seçin:",
+        'searching': ["🎸 Gitaranı kökləyirəm...", "🎼 Notlarda ilham axtarıram...", "🎧 Dünya hitlərini dinləyirəm..."],
+        'found': ["✨ Evrika! Budur tapılanlar:", "🎵 Sənin üçün xüsusi musiqi tapıntısı:", "🔥 Bu əla səslənir! Seç:"],
+        'not_found': "😢 Təəssüf ki, sükutdur... Heç nə tapılmadı.\nBaşqa sorğu yoxla!",
+        'error': "😵 Oy, sim qırıldı! (Axtarış xətası)",
+        'back': "◀️ Geri",
+        'next': "▶️ İrəli",
+        'timeout': "🕰 Vaxt bitdi! Yeni axtarışa başla.",
+        'recognizing': "🎧 *Ritmi dinləyirəm...*",
+        'not_recognized': "🤷‍♂️ Bu melodiyanı tanımıram... Bəlkə bir az bərkdən oxuyasan?",
+        'recognized': "🔥 *O, bu axı {subtitle} — {title}!* \nSənin üçün ən yaxşı yazını axtarıram...",
+        'rec_error': "😵 Tanımaq mümkün olmadı. Deyəsən kimsə yalan oxuyur!",
+        'sending': "🚀 *Sənə tərəf uçur:* {title}...",
+        'dl_error': "❌ Yükləmə uğursuz oldu. Yenidən cəhd et.",
+        'track_error': "😿 Bağışlayın, bu treki əldə etmək mümkün olmadı.",
+        'dev': "💎 Hazırladı: Aglarus"
+    }
+}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /start is issued."""
+    keyboard = [
+        [
+            InlineKeyboardButton("🇷🇺 Русский", callback_data="setlang_ru"),
+            InlineKeyboardButton("🇺🇿 Uzbekcha", callback_data="setlang_uz")
+        ],
+        [
+            InlineKeyboardButton("🇺🇸 English", callback_data="setlang_en"),
+            InlineKeyboardButton("🇦🇿 Azərbaycan", callback_data="setlang_az")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     if update.effective_message:
         await update.effective_message.reply_text(
-            "🎸 *Привет! Я твой личный музыкальный гуру.*\n\n"
-            "1️⃣ *Поиск*: Просто напиши название или автора.\n"
-            "2️⃣ *Распознавание*: Скинь аудио или голосовое — и я узнаю этот хит!\n\n"
-            "📩 Попробуй: 'Лепс зараза'"
-            f"{FOOTER_TEXT}",
-            parse_mode='Markdown'
+            STRINGS['ru']['lang_select'],
+            reply_markup=reply_markup
         )
+
+async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    lang = query.data.split('_')[1]
+    user_id = update.effective_user.id
+    user_prefs[user_id] = lang
+    save_prefs()
+    
+    await query.answer()
+    await query.message.edit_text(
+        STRINGS[lang]['start'] + FOOTER_TEXT[lang],
+        parse_mode='Markdown'
+    )
+
+def get_lang(user_id):
+    return user_prefs.get(user_id, 'ru')
 
 async def search_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the user message and search for music."""
@@ -60,12 +171,14 @@ async def search_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     query = update.effective_message.text
     user_id = update.effective_user.id
+    lang = get_lang(user_id)
     
-    sent_message = await update.effective_message.reply_text(random.choice(CREATIVE_STATUS))
+    sent_message = await update.effective_message.reply_text(random.choice(STRINGS[lang]['searching']))
     await perform_search(update, context, query, sent_message)
 
 async def perform_search(update, context, query, sent_message):
     user_id = update.effective_user.id
+    lang = get_lang(user_id)
     try:
         ydl_opts = {
             'format': 'bestaudio[ext=m4a]/bestaudio/best',
@@ -83,7 +196,7 @@ async def perform_search(update, context, query, sent_message):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch50:{query}", download=False)
             if not info or 'entries' not in info or not info['entries']:
-                await sent_message.edit_text("😢 Увы, тишина... Ничего не найдено.\nПопробуй другой запрос!")
+                await sent_message.edit_text(STRINGS[lang]['not_found'])
                 return
             
             results = info['entries']
@@ -97,13 +210,14 @@ async def perform_search(update, context, query, sent_message):
             
     except Exception as e:
         logger.error(f"Search error: {e}")
-        await sent_message.edit_text(f"😵 Ой, струна лопнула! (Ошибка поиска)")
+        await sent_message.edit_text(STRINGS[lang]['error'])
 
 async def show_results(update, context, message, user_id):
     search_data = user_searches.get(user_id)
     if not search_data:
         return
 
+    lang = get_lang(user_id)
     results = search_data['results']
     page = search_data['page']
     per_page = 10
@@ -111,7 +225,7 @@ async def show_results(update, context, message, user_id):
     start_idx = page * per_page
     end_idx = min(start_idx + per_page, len(results))
     
-    text = f"{random.choice(CREATIVE_FOUND)}\n\n"
+    text = f"{random.choice(STRINGS[lang]['found'])}\n\n"
     keyboard = []
     
     row1, row2 = [], []
@@ -119,7 +233,7 @@ async def show_results(update, context, message, user_id):
     for i in range(start_idx, end_idx):
         num = i - start_idx + 1
         title = results[i].get('title', 'Unknown')
-        text += f"{num}️⃣ {title}\n"
+        text += f"{num}. {title}\n"
         
         btn = InlineKeyboardButton(str(num), callback_data=f"select_{i}")
         if num <= 5: row1.append(btn)
@@ -129,11 +243,11 @@ async def show_results(update, context, message, user_id):
     if row2: keyboard.append(row2)
         
     nav_row = []
-    if page > 0: nav_row.append(InlineKeyboardButton("◀️ Назад", callback_data="prev"))
-    if len(results) > end_idx: nav_row.append(InlineKeyboardButton("▶️ Вперёд", callback_data="next"))
+    if page > 0: nav_row.append(InlineKeyboardButton(STRINGS[lang]['back'], callback_data="prev"))
+    if len(results) > end_idx: nav_row.append(InlineKeyboardButton(STRINGS[lang]['next'], callback_data="next"))
     
     if nav_row: keyboard.append(nav_row)
-    keyboard.append([InlineKeyboardButton("💎 Разработка: Aglarus", url="https://t.me/aglarus")])
+    keyboard.append([InlineKeyboardButton(STRINGS[lang]['dev'], url="https://t.me/aglarus")])
         
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -148,6 +262,8 @@ async def recognize_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recognize music from voice or audio message."""
     message = update.effective_message
     if not message: return
+    user_id = update.effective_user.id
+    lang = get_lang(user_id)
 
     file = None
     if message.voice: file = await message.voice.get_file()
@@ -160,7 +276,7 @@ async def recognize_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not file: return
 
-    status_msg = await message.reply_text("🎧 *Прислушиваюсь к ритму...*", parse_mode='Markdown')
+    status_msg = await message.reply_text(STRINGS[lang]['recognizing'], parse_mode='Markdown')
     
     try:
         os.makedirs('temp', exist_ok=True)
@@ -178,7 +294,7 @@ async def recognize_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if os.path.exists(mp3_path): os.remove(mp3_path)
         
         if not out or not out.get('track'):
-            await status_msg.edit_text("🤷‍♂️ Не узнаю этот мотив... Может, споешь погромче?")
+            await status_msg.edit_text(STRINGS[lang]['not_recognized'])
             return
             
         track = out['track']
@@ -186,21 +302,26 @@ async def recognize_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subtitle = track.get('subtitle', 'Unknown')
         query = f"{subtitle} {title}"
         
-        await status_msg.edit_text(f"🔥 *О, это же {subtitle} — {title}!* \nИщу лучшую запись для тебя...", parse_mode='Markdown')
+        await status_msg.edit_text(STRINGS[lang]['recognized'].format(subtitle=subtitle, title=title), parse_mode='Markdown')
         await perform_search(update, context, query, status_msg)
         
     except Exception as e:
         logger.error(f"Recognition error: {e}")
-        await status_msg.edit_text("😵 Не удалось распознать. Кажется, кто-то фальшивит!")
+        await status_msg.edit_text(STRINGS[lang]['rec_error'])
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
+    lang = get_lang(user_id)
     data = query.data
     
+    if data.startswith("setlang_"):
+        await set_language(update, context)
+        return
+
     if user_id not in user_searches:
-        await query.message.edit_text("🕰 Время вышло! Начни новый поиск.")
+        await query.message.edit_text(STRINGS[lang]['timeout'])
         return
         
     search_data = user_searches[user_id]
@@ -218,10 +339,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def download_and_send(update, context, track):
     chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    lang = get_lang(user_id)
     url = track.get('url') or track.get('webpage_url')
     title = track.get('title', 'Song')
     
-    status_msg = await context.bot.send_message(chat_id, f"🚀 *Летит к тебе:* {title}...", parse_mode='Markdown')
+    status_msg = await context.bot.send_message(chat_id, STRINGS[lang]['sending'].format(title=title), parse_mode='Markdown')
     
     try:
         ydl_opts = {
@@ -242,7 +365,7 @@ async def download_and_send(update, context, track):
             ydl.download([url])
             files = glob.glob('downloads/*')
             if not files:
-                await status_msg.edit_text("❌ Загрузка сорвалась. Попробуй еще раз.")
+                await status_msg.edit_text(STRINGS[lang]['dl_error'])
                 return
             
             filename = max(files, key=os.path.getctime)
@@ -251,7 +374,7 @@ async def download_and_send(update, context, track):
                     chat_id=chat_id,
                     audio=audio,
                     title=title,
-                    caption=f"🎧 {title}{FOOTER_TEXT}",
+                    caption=f"🎧 {title}{FOOTER_TEXT[lang]}",
                     parse_mode='Markdown',
                     read_timeout=180,
                     write_timeout=180,
@@ -262,7 +385,8 @@ async def download_and_send(update, context, track):
             
     except Exception as e:
         logger.error(f"Download error: {e}")
-        await status_msg.edit_text(f"😿 Прости, не удалось достать этот трек.")
+        await status_msg.edit_text(STRINGS[lang]['track_error'])
+
 
 def main():
     if not TELEGRAM_TOKEN: return
