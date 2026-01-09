@@ -7,7 +7,7 @@ import random
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -23,6 +23,17 @@ logger = logging.getLogger(__name__)
 
 # Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TELEGRAM_TOKEN:
+    # Try to read from .env file manually as a fallback
+    try:
+        with open(".env", "r") as f:
+            for line in f:
+                if line.startswith("TELEGRAM_BOT_TOKEN="):
+                    TELEGRAM_TOKEN = line.split("=", 1)[1].strip()
+                    break
+    except:
+        pass
+
 FOOTER_TEXT = {
     'ru': "\n\n⚡️ *Бот разработан Aglarus*",
     'uz': "\n\n⚡️ *Bot Aglarus tomonidan ishlab chiqilgan*",
