@@ -6,6 +6,18 @@ import glob
 import random
 from dotenv import load_dotenv
 
+# Compatibility for Python 3.13+ (audioop removal)
+try:
+    import audioop
+except ImportError:
+    try:
+        import audioop_copy as audioop
+        import sys
+        sys.modules['audioop'] = audioop
+    except ImportError:
+        # Fallback for environments where audioop is missing and cannot be installed
+        pass
+
 # Load environment variables
 load_dotenv(override=True)
 
