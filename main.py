@@ -40,17 +40,28 @@ logger = logging.getLogger(__name__)
 
 # Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-# Priority: .env file first, then environment secrets
-try:
-    with open(".env", "r") as f:
-        for line in f:
-            if line.startswith("TELEGRAM_BOT_TOKEN="):
-                val = line.split("=", 1)[1].strip()
-                if val:
-                    TELEGRAM_TOKEN = val
-                break
-except:
-    pass
+
+# Force read from .env if it exists
+if os.path.exists(".env"):
+    try:
+        with open(".env", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("TELEGRAM_BOT_TOKEN="):
+                    parts = line.split("=", 1)
+                    if len(parts) == 2:
+                        val = parts[1].strip()
+                        if val:
+                            TELEGRAM_TOKEN = val
+                            break
+    except Exception as e:
+        logger.error(f"Error reading .env manually: {e}")
+
+if TELEGRAM_TOKEN:
+    token_prefix = TELEGRAM_TOKEN.split(':')[0] if ':' in TELEGRAM_TOKEN else "INVALID"
+    logger.info(f"Using token with ID prefix: {token_prefix}")
+else:
+    logger.error("No TELEGRAM_BOT_TOKEN found in environment or .env file!")
 
 FOOTER_TEXT = {
     'ru': "\n\n⚡️ *Бот разработан Aglarus*",
