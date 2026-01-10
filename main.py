@@ -207,6 +207,12 @@ async def perform_search(update, context, query, sent_message):
             'cachedir': False,
             'youtube_include_dash_manifest': False,
             'youtube_include_hls_manifest': False,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Sec-Fetch-Mode': 'navigate',
+            }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -304,7 +310,7 @@ async def recognize_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         audio.export(mp3_path, format="mp3")
         
         shazam = Shazam()
-        out = await shazam.recognize_song(mp3_path)
+        out = await shazam.recognize(mp3_path)
         
         if os.path.exists(ogg_path): os.remove(ogg_path)
         if os.path.exists(mp3_path): os.remove(mp3_path)
@@ -373,6 +379,12 @@ async def download_and_send(update, context, track):
             'noplaylist': True,
             'external_downloader': 'ffmpeg',
             'external_downloader_args': ['-ss', '00:00:00', '-t', '00:10:00', '-preset', 'ultrafast'],
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Sec-Fetch-Mode': 'navigate',
+            }
         }
         
         os.makedirs('downloads', exist_ok=True)

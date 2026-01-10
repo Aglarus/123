@@ -1100,7 +1100,6 @@ dependencies = [
     { name = "python-telegram-bot", extra = ["all"] },
     { name = "shazamio" },
     { name = "spotipy" },
-    { name = "telegram" },
     { name = "yt-dlp" },
 ]
 
@@ -1111,7 +1110,6 @@ requires-dist = [
     { name = "python-telegram-bot", extras = ["all"], specifier = ">=22.5" },
     { name = "shazamio", specifier = ">=0.8.1" },
     { name = "spotipy", specifier = ">=2.25.2" },
-    { name = "telegram", specifier = ">=0.0.1" },
     { name = "yt-dlp", specifier = ">=2025.12.8" },
 ]
 
@@ -1206,12 +1204,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/5c/25/abb658f5a1f8c3eb5
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/71/869c1ff4e7a40f99007d731327e9d5e2910b406128290c4d8942e579072d/spotipy-2.25.2-py3-none-any.whl", hash = "sha256:694bc9734d94171716257bf18eea9f1cb2ff8c581e59c74464137433830cf890", size = 31790, upload-time = "2025-11-26T20:22:57.087Z" },
 ]
-
-[[package]]
-name = "telegram"
-version = "0.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9d/ca/8bdf2deb93b9f6971dabf2ddc827c2a98ce23e13582a15b37e9bc169f226/telegram-0.0.1.tar.gz", hash = "sha256:d405a0af4c868a8dbeae6d03e297e21c7ee6269e11e2ed3810e15544aba02591", size = 879, upload-time = "2015-09-29T07:32:18.348Z" }
 
 [[package]]
 name = "tornado"

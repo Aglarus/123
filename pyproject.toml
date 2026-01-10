@@ -10,6 +10,5 @@ dependencies = [
     "python-telegram-bot[all]>=22.5",
     "shazamio>=0.8.1",
     "spotipy>=2.25.2",
-    "telegram>=0.0.1",
     "yt-dlp>=2025.12.8",
 ]
