@@ -40,16 +40,17 @@ logger = logging.getLogger(__name__)
 
 # Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-if not TELEGRAM_TOKEN:
-    # Try to read from .env file manually as a fallback
-    try:
-        with open(".env", "r") as f:
-            for line in f:
-                if line.startswith("TELEGRAM_BOT_TOKEN="):
-                    TELEGRAM_TOKEN = line.split("=", 1)[1].strip()
-                    break
-    except:
-        pass
+# Priority: .env file first, then environment secrets
+try:
+    with open(".env", "r") as f:
+        for line in f:
+            if line.startswith("TELEGRAM_BOT_TOKEN="):
+                val = line.split("=", 1)[1].strip()
+                if val:
+                    TELEGRAM_TOKEN = val
+                break
+except:
+    pass
 
 FOOTER_TEXT = {
     'ru': "\n\n⚡️ *Бот разработан Aglarus*",
@@ -224,8 +225,14 @@ async def perform_search(update, context, query, sent_message):
             'cachedir': False,
             'youtube_include_dash_manifest': False,
             'youtube_include_hls_manifest': False,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web', 'tv'],
+                    'skip': ['dash', 'hls']
+                }
+            },
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Sec-Fetch-Mode': 'navigate',
@@ -396,8 +403,14 @@ async def download_and_send(update, context, track):
             'noplaylist': True,
             'external_downloader': 'ffmpeg',
             'external_downloader_args': ['-ss', '00:00:00', '-t', '00:10:00', '-preset', 'ultrafast'],
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'web', 'tv'],
+                    'skip': ['dash', 'hls']
+                }
+            },
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Sec-Fetch-Mode': 'navigate',
