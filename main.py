@@ -6,20 +6,25 @@ import glob
 import random
 from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv(override=True)
+
 # Compatibility for Python 3.13+ (audioop removal)
+import sys
 try:
     import audioop
 except ImportError:
     try:
         import audioop_copy as audioop
-        import sys
         sys.modules['audioop'] = audioop
     except ImportError:
-        # Fallback for environments where audioop is missing and cannot be installed
-        pass
-
-# Load environment variables
-load_dotenv(override=True)
+        # Fallback to avoid crash on import
+        class MockAudioop:
+            def __getattr__(self, name):
+                def mock_func(*args, **kwargs):
+                    raise ImportError("audioop module is required for this action and is missing in Python 3.13+")
+                return mock_func
+        sys.modules['audioop'] = MockAudioop()
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
