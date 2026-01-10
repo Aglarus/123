@@ -9,23 +9,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(override=True)
 
-# Compatibility for Python 3.13+ (audioop removal)
-import sys
-try:
-    import audioop
-except ImportError:
-    try:
-        import audioop_copy as audioop
-        sys.modules['audioop'] = audioop
-    except ImportError:
-        # Fallback to avoid crash on import
-        class MockAudioop:
-            def __getattr__(self, name):
-                def mock_func(*args, **kwargs):
-                    raise ImportError("audioop module is required for this action and is missing in Python 3.13+")
-                return mock_func
-        sys.modules['audioop'] = MockAudioop()
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import yt_dlp
@@ -40,28 +23,16 @@ logger = logging.getLogger(__name__)
 
 # Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-# Force read from .env if it exists
-if os.path.exists(".env"):
+if not TELEGRAM_TOKEN:
+    # Try to read from .env file manually as a fallback
     try:
         with open(".env", "r") as f:
             for line in f:
-                line = line.strip()
                 if line.startswith("TELEGRAM_BOT_TOKEN="):
-                    parts = line.split("=", 1)
-                    if len(parts) == 2:
-                        val = parts[1].strip()
-                        if val:
-                            TELEGRAM_TOKEN = val
-                            break
-    except Exception as e:
-        logger.error(f"Error reading .env manually: {e}")
-
-if TELEGRAM_TOKEN:
-    token_prefix = TELEGRAM_TOKEN.split(':')[0] if ':' in TELEGRAM_TOKEN else "INVALID"
-    logger.info(f"Using token with ID prefix: {token_prefix}")
-else:
-    logger.error("No TELEGRAM_BOT_TOKEN found in environment or .env file!")
+                    TELEGRAM_TOKEN = line.split("=", 1)[1].strip()
+                    break
+    except:
+        pass
 
 FOOTER_TEXT = {
     'ru': "\n\n⚡️ *Бот разработан Aglarus*",
@@ -236,18 +207,6 @@ async def perform_search(update, context, query, sent_message):
             'cachedir': False,
             'youtube_include_dash_manifest': False,
             'youtube_include_hls_manifest': False,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'web', 'tv'],
-                    'skip': ['dash', 'hls']
-                }
-            },
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Sec-Fetch-Mode': 'navigate',
-            }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -345,7 +304,7 @@ async def recognize_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         audio.export(mp3_path, format="mp3")
         
         shazam = Shazam()
-        out = await shazam.recognize(mp3_path)
+        out = await shazam.recognize_song(mp3_path)
         
         if os.path.exists(ogg_path): os.remove(ogg_path)
         if os.path.exists(mp3_path): os.remove(mp3_path)
@@ -414,18 +373,6 @@ async def download_and_send(update, context, track):
             'noplaylist': True,
             'external_downloader': 'ffmpeg',
             'external_downloader_args': ['-ss', '00:00:00', '-t', '00:10:00', '-preset', 'ultrafast'],
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'web', 'tv'],
-                    'skip': ['dash', 'hls']
-                }
-            },
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Sec-Fetch-Mode': 'navigate',
-            }
         }
         
         os.makedirs('downloads', exist_ok=True)
@@ -463,13 +410,6 @@ async def main_async():
         return
         
     application = Application.builder().token(TELEGRAM_TOKEN).build()
-    
-    # Final check to clear any pending updates (prevents 409 Conflict)
-    try:
-        await application.initialize()
-        await application.bot.delete_webhook(drop_pending_updates=True)
-    except Exception as e:
-        logger.warning(f"Could not delete webhook: {e}")
     
     # Получаем информацию о боте для вывода названия
     bot_info = await application.bot.get_me()
