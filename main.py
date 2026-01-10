@@ -464,6 +464,13 @@ async def main_async():
         
     application = Application.builder().token(TELEGRAM_TOKEN).build()
     
+    # Final check to clear any pending updates (prevents 409 Conflict)
+    try:
+        await application.initialize()
+        await application.bot.delete_webhook(drop_pending_updates=True)
+    except Exception as e:
+        logger.warning(f"Could not delete webhook: {e}")
+    
     # Получаем информацию о боте для вывода названия
     bot_info = await application.bot.get_me()
     print(f"🚀 Бот @{bot_info.username} ({bot_info.first_name}) успешно запущен и готов к работе!")
